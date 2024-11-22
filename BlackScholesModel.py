@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import norm
 
 """
-Function returned price for a call or put option calculated using the BSM
+Function returning price for a call or put option calculated using the Black-Scholes model
 
 Call/Put option price is calculated with following assumptions:
     - European option can be exercised only on maturity date.
@@ -27,13 +27,13 @@ class BlackScholesModel:
         time_to_expiration: length of time option contract is valid for
         volatility: volatility of underlying stock (standard deviation of the stock's log returns)
         """
-        self.S = stock_price
+        self.S = stock_price        # underlying stock price
         self.X = strike_price
         self.r = risk_free_rate
-        self.T = time_to_expiration
+        self.T = time_to_expiration / 365       # In days
         self.volatility = volatility
     
-    def option_price(self, option_type):
+    def bsm_option_price(self, option_type):
         """
         Method to calculate option price
 
@@ -48,8 +48,12 @@ class BlackScholesModel:
         
         try:
             if option_type == "Call":
-                price = self.S * norm.cdf(d1, 0.0, 1.0) - self.X * np.exp(-self.r * self.T) * norm.cdf(d2, 0.0, 1.0)
+                call_price = self.S * norm.cdf(d1, 0.0, 1.0) - self.X * np.exp(-self.r * self.T) * norm.cdf(d2, 0.0, 1.0)
+                return call_price
             elif option_type == "Put":
-                price = self.X * np.exp(-self.r * self.T) * norm.cdf(-d2, 0.0, 1.0) - self.S * norm.cdf(-d1, 0.0, 1.0)
+                put_price = self.X * np.exp(-self.r * self.T) * norm.cdf(-d2, 0.0, 1.0) - self.S * norm.cdf(-d1, 0.0, 1.0)
+                return put_price
         except:
-            print('Invalid input')
+            return print('Invalid input')
+        
+    
