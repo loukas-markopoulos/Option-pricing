@@ -10,9 +10,10 @@ The option price is found by averaging all simulated stock prices at maturity an
 """
 
 class MonteCarloSimulation:
-    def __init__(self, stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps):
+    
+    def mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps,  option_type):
         """
-        Initialises variables used in the Monte Carlo Simulation formula.
+        Method to calculate the option price
 
         stock_price: underlying current stock price
         strike_price: strike price of option
@@ -20,52 +21,81 @@ class MonteCarloSimulation:
         time_to_expiration: length of time option contract is valid for
         volatility: volatility of underlying stock (standard deviation of the stock's log returns)
         num_simulations: number of potential random underlying price movements
-        num_steps: 
-        """
+        num_steps: steps for each simulation
 
-        self.S = stock_price        # underlying stock price at option's buy date (most recent stock price)
-        self.X = strike_price
-        self.r = risk_free_rate
-        self.T = time_to_expiration / 365       # In days
-        self.volatility = volatility
-        self.N = num_simulations
-        # If you want to plot the individual steps of each simulation then these atributes are necessary:
-        # self.num_steps = num_steps
-        # self.step_size = time_to_expiration / self.num_steps
-    
-    def mcs_option_price(self, option_type):
-        """
-        Method to calculate the option price
+        self could not be passed as a parameter because the variables need to change when calculating the greeks 
 
         Both call and put options require calculating payoffs for each simulated price, averaging these and discounting them
         Payoffs for call options: max(simulated_price - strike_price, 0)
         Payoffs for put options: max(strike_price - simulated_price, 0)
         """
-        
-        simulated_prices = np.zeros(self.N)
+        T = time_to_expiration / 365
+        step_size = T / num_steps
 
-        for i in range(self.N):
-            # Generate a random sample from standard normal distribution
-            Z = np.random.standard_normal()
+        simulated_prices = np.zeros((num_simulations, num_steps + 1))
+        simulated_prices[:, 0] = stock_price
 
-            simulated_prices[i] = self.S * np.exp((self.r - 0.5 * self.volatility ** 2) * self.T + self.volatility * np.sqrt(self.T) * Z)
+        for step in range(1, num_steps + 1):
+            Z = np.random.standard_normal(num_simulations)
+            simulated_prices[:,step] = simulated_prices[:, step - 1] * np.exp((risk_free_rate - 0.5 * volatility**2) * step_size + volatility * np.sqrt(step_size) * Z)
         
-        total_payoff = 0
+        MonteCarloSimulation.visualise_mcs(simulated_prices, num_simulations, T, num_steps)
 
         try:
             if option_type == "Call":
-                for simulated_value in simulated_prices:
-                    payoff = max(simulated_value - self.X, 0)
-                    total_payoff += payoff
-                call_price = np.exp(-self.r * self.T) * (total_payoff / self.N)
-                return call_price
+                payoffs = np.maximum(simulated_prices[:, -1] - strike_price, 0)
+            
             elif option_type == "Put":
-                for simulated_value in simulated_prices:
-                    payoff = max(self.X - simulated_value, 0)
-                    total_payoff += payoff
-                put_price = np.exp(-self.r * self.T) * (total_payoff / self.N)
-                return put_price
+                payoffs = np.maximum(strike_price - simulated_prices[:, -1], 0)
+            
+            option_price = np.exp(-risk_free_rate * T) . np.mean(payoffs)
+            return option_price
         except:
-            return print('Invalid input')
+            print("Invalid input")
 
-    # function to visualise the monte carlo simulation
+
+    def visualise_mcs(simulated_prices, num_simulations, T, num_steps):
+
+        for i in range(num_simulations):
+            plt.plot(np.linspace(0, T, num_steps + 1), simulated_prices[i], color='red', alpha = 0.1)
+        plt.title("Monte Carlo Simulation of Option Price")
+        plt.xlabel("Time to Maturity (years)")
+        plt.ylabel("Option Price")
+        plt.grid(alpha=0.3)
+        plt.show()
+
+    
+    def mcs_greeks(stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps,  option_type):
+        """
+        Method to calculate the 5 greeks of options using the monte carlo simulation.
+
+        Delta: measures how the option price changes with a small change (epsilon) in the underlying price
+        Gamma: measures how delta changes with a small change (epsilon) in the underlying price
+        Theta: measures how the option price changes with a small change (epsilon) in the time to maturity
+        Vega: measures how the option price changes with a small change (epsilon) in the volatility
+        Rho: measures how the option price changes with a small change (epsilon) in the risk-free interest
+        """
+
+        delta_gamma_epsilon = 0.005 * stock_price
+        vega_epsilon = 0.01 * volatility
+        theta_epsilon = 0.01 * time_to_expiration
+        rho_epsilon = 0.001 * risk_free_rate
+
+        try:
+            if option_type == "Call":
+                delta = (MonteCarloSimulation.mcs_option_price((stock_price + delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Call") - MonteCarloSimulation.mcs_option_price((stock_price - delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Call")) / (2 * delta_gamma_epsilon)
+                gamma = (MonteCarloSimulation.mcs_option_price((stock_price + delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Call") + MonteCarloSimulation.mcs_option_price((stock_price - delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Call") - 2 * MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Call")) / (delta_gamma_epsilon**2)
+                vega = (MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, (volatility + vega_epsilon), num_simulations, num_steps, "Call") - MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, (volatility - vega_epsilon), num_simulations, num_steps, "Call")) / (2 * vega_epsilon)
+                theta = (MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, (time_to_expiration + theta_epsilon), volatility, num_simulations, num_steps, "Call") - MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, (time_to_expiration - theta_epsilon), volatility, num_simulations, num_steps, "Call")) / (2 * theta_epsilon)
+                rho = (MonteCarloSimulation.mcs_option_price(stock_price, strike_price, (risk_free_rate + rho_epsilon), time_to_expiration, volatility, num_simulations, num_steps, "Call") - MonteCarloSimulation.mcs_option_price(stock_price, strike_price, (risk_free_rate - rho_epsilon), time_to_expiration, volatility, num_simulations, num_steps, "Call")) / (2 * rho_epsilon)
+
+            elif option_type == "Put":
+                delta = (MonteCarloSimulation.mcs_option_price((stock_price + delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Put") - MonteCarloSimulation.mcs_option_price((stock_price - delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Put")) / (2 * delta_gamma_epsilon)
+                gamma = (MonteCarloSimulation.mcs_option_price((stock_price + delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Put") + MonteCarloSimulation.mcs_option_price((stock_price - delta_gamma_epsilon), strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Put") - 2 * MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Put")) / (delta_gamma_epsilon**2)
+                vega = (MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, (volatility + vega_epsilon), num_simulations, num_steps, "Put") - MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, (volatility - vega_epsilon), num_simulations, num_steps, "Put")) / (2 * vega_epsilon)
+                theta = (MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, (time_to_expiration + theta_epsilon), volatility, num_simulations, num_steps, "Put") - MonteCarloSimulation.mcs_option_price(stock_price, strike_price, risk_free_rate, (time_to_expiration - theta_epsilon), volatility, num_simulations, num_steps, "Put")) / (2 * theta_epsilon)
+                rho = (MonteCarloSimulation.mcs_option_price(stock_price, strike_price, (risk_free_rate + rho_epsilon), time_to_expiration, volatility, num_simulations, num_steps, "Put") - MonteCarloSimulation.mcs_option_price(stock_price, strike_price, (risk_free_rate - rho_epsilon), time_to_expiration, volatility, num_simulations, num_steps, "Put")) / (2 * rho_epsilon)
+        except:
+            print('Invalid input')
+        
+        return delta, gamma, vega, theta, rho
