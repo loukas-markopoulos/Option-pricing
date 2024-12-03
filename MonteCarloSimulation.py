@@ -43,7 +43,7 @@ class MonteCarloSimulation:
             Z = np.random.standard_normal(num_simulations)
             simulated_prices[:,step] = simulated_prices[:, step - 1] * np.exp((risk_free_rate - 0.5 * volatility**2) * step_size + volatility * np.sqrt(step_size) * Z)
         
-        # MonteCarloSimulation.visualise_mcs(simulated_prices, 100, T, num_steps, option_type)
+        MonteCarloSimulation.visualise_mcs(simulated_prices, 100, T, num_steps, option_type)
 
         try:
             if option_type == "Call":
