@@ -27,10 +27,10 @@ class BlackScholesModel:
         time_to_expiration: length of time option contract is valid for
         volatility: volatility of underlying stock (standard deviation of the stock's log returns)
         """
-        self.S = stock_price        # underlying stock price
+        self.S = stock_price            # underlying stock price
         self.X = strike_price
         self.r = risk_free_rate
-        self.T = time_to_expiration / 365       # In days
+        self.T = time_to_expiration     # in years
         self.volatility = volatility
     
     def bsm_option_price(self, option_type):
@@ -44,7 +44,7 @@ class BlackScholesModel:
         # d1 measures the distance between the underlying asset price and the strike price, adjusted for volatility and time to expiration.
         d1 = (np.log(self.S / self.X) + (self.r + 0.5 * self.volatility**2) * self.T) / (self.volatility * np.sqrt(self.T))
         # d2 is similar to d1, but it also factors in the volatility decay over time
-        d2 = (np.log(self.S / self.X) + (self.r - 0.5 * self.volatility**2) * self.T) / (self.volatility * np.sqrt(self.T))
+        d2 = d1 - self.volatility * np.sqrt(self.T)
         
         try:
             if option_type == "Call":
@@ -72,20 +72,22 @@ class BlackScholesModel:
         # d1 measures the distance between the underlying asset price and the strike price, adjusted for volatility and time to expiration.
         d1 = (np.log(self.S / self.X) + (self.r + 0.5 * self.volatility**2) * self.T) / (self.volatility * np.sqrt(self.T))
         # d2 is similar to d1, but it also factors in the volatility decay over time
-        d2 = (np.log(self.S / self.X) + (self.r - 0.5 * self.volatility**2) * self.T) / (self.volatility * np.sqrt(self.T))
+        d2 = d1 - self.volatility * np.sqrt(self.T)
 
         gamma = np.exp(-0.5 * d1**2) / (self.S * self.volatility * np.sqrt(2 * np.pi * self.T))
         vega = self.S * np.exp(-0.5 * d1**2) * np.sqrt(self.T / (2 * np.pi))
         try:
             if option_type == "Call":
                 delta = norm.cdf(d1)
-                theta = -0.5 * self.S * self.volatility * np.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi * self.T) - self.r * self.X * np.exp(-self.r * self.T) * norm.cdf(d2)
-                rho = self.X * self.T * np.exp(-self.r * self.T) * norm.cdf(d2)
+                theta = (-self.S * self.volatility * np.exp(-0.5 * d1**2) / (2 * np.sqrt(2 * np.pi * self.T)) - self.r * self.X * np.exp(-self.r * self.T) * norm.cdf(d2))
+                theta /= 365        # returns the daily value of theta instead of the annualised (more useful)
+                rho = (self.X * self.T * np.exp(-self.r * self.T) * norm.cdf(d2)) / 100
             
             elif option_type == "Put":
                 delta = norm.cdf(d1) - 1
-                theta = -0.5 * self.S * self.volatility * np.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi * self.T) + self.r * self.X * np.exp(-self.r * self.T) * norm.cdf(-d2)
-                rho = self.X * self.T * np.exp(-self.r * self.T) * norm.cdf(-d2)
+                theta = (-self.S * self.volatility * np.exp(-0.5 * d1**2) / (2 * np.sqrt(2 * np.pi * self.T)) + self.r * self.X * np.exp(-self.r * self.T) * norm.cdf(-d2))
+                theta /= 365
+                rho = (self.X * self.T * np.exp(-self.r * self.T) * norm.cdf(-d2)) / (-100)
         
         except:
             return print('Invalid input')

@@ -11,6 +11,7 @@ The option price is found by averaging all simulated stock prices at maturity an
 
 class MonteCarloSimulation:
     
+    @staticmethod
     def mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps,  option_type):
         """
         Method to calculate the option price
@@ -23,12 +24,15 @@ class MonteCarloSimulation:
         num_simulations: number of potential random underlying price movements
         num_steps: steps for each simulation
 
-        self could not be passed as a parameter because the variables need to change when calculating the greeks 
+        A random seed is set for reproducibility
 
         Both call and put options require calculating payoffs for each simulated price, averaging these and discounting them
         Payoffs for call options: max(simulated_price - strike_price, 0)
         Payoffs for put options: max(strike_price - simulated_price, 0)
         """
+
+        np.random.seed(42)
+
         T = time_to_expiration / 365
         step_size = T / num_steps
 
@@ -39,7 +43,7 @@ class MonteCarloSimulation:
             Z = np.random.standard_normal(num_simulations)
             simulated_prices[:,step] = simulated_prices[:, step - 1] * np.exp((risk_free_rate - 0.5 * volatility**2) * step_size + volatility * np.sqrt(step_size) * Z)
         
-        MonteCarloSimulation.visualise_mcs(simulated_prices, num_simulations, T, num_steps)
+        # MonteCarloSimulation.visualise_mcs(simulated_prices, 100, T, num_steps, option_type)
 
         try:
             if option_type == "Call":
@@ -48,23 +52,25 @@ class MonteCarloSimulation:
             elif option_type == "Put":
                 payoffs = np.maximum(strike_price - simulated_prices[:, -1], 0)
             
-            option_price = np.exp(-risk_free_rate * T) . np.mean(payoffs)
+            option_price = np.exp(-risk_free_rate * T) * np.mean(payoffs)
             return option_price
         except:
             print("Invalid input")
 
+    @staticmethod
+    def visualise_mcs(simulated_prices, num_plot_paths, T, num_steps, option_type):
+        plot_indices = np.random.choice(simulated_prices.shape[0], size = num_plot_paths, replace=False)
+        selected_plots = simulated_prices[plot_indices]
 
-    def visualise_mcs(simulated_prices, num_simulations, T, num_steps):
-
-        for i in range(num_simulations):
-            plt.plot(np.linspace(0, T, num_steps + 1), simulated_prices[i], color='red', alpha = 0.1)
-        plt.title("Monte Carlo Simulation of Option Price")
+        for i in range(num_plot_paths):
+            plt.plot(np.linspace(0, T, num_steps + 1), selected_plots[i], color='red', alpha = 0.1)
+        plt.title(f"Monte Carlo Simulation of {option_type} Option Price")
         plt.xlabel("Time to Maturity (years)")
         plt.ylabel("Option Price")
         plt.grid(alpha=0.3)
         plt.show()
 
-    
+    @staticmethod
     def mcs_greeks(stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps,  option_type):
         """
         Method to calculate the 5 greeks of options using the monte carlo simulation.

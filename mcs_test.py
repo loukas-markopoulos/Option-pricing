@@ -6,8 +6,8 @@ strike_price = 100
 risk_free_rate = 0.05
 time_to_expiration = 1
 volatility = 0.2
-num_simulations = 100
-num_steps = 50
+num_simulations = 50000
+num_steps = 365
 
 mcs_asset = MonteCarloSimulation()
 call_price = mcs_asset.mcs_option_price(stock_price, strike_price, risk_free_rate, time_to_expiration, volatility, num_simulations, num_steps, "Call")
